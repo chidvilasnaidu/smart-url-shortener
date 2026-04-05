@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Snip — History{% endblock %}
+
+{% block extra_head %}
+<style>
+  .page-header {
+    padding: 3.5rem 0 2rem;
+    animation: fadeDown .4s ease both;
+  }
+
+  .page-header h2 {
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 2.2rem;
+    letter-spacing: -.03em;
+    margin-bottom: .4rem;
+  }
+
+  .page-header p { color: var(--muted); font-size: .95rem; }
+
+  /* ── Table ─────────────────────────────────────────────────────────── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    animation: fadeUp .4s .1s ease both;
+    margin-bottom: 4rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    font-family: var(--font-mono);
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 1rem 1.5rem;
+    text-align: left;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+
+  td {
+    padding: 1.1rem 1.5rem;
+    font-size: .875rem;
+    vertical-align: middle;
+  }
+
+  .td-original {
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--muted);
+    font-size: .82rem;
+  }
+
+  .td-original a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .td-original a:hover { color: var(--text); }
+
+  .td-short a {
+    font-family: var(--font-mono);
+    font-size: .85rem;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .td-short a:hover { text-decoration: underline; }
+
+  .td-date {
+    font-family: var(--font-mono);
+    font-size: .78rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .td-clicks {
+    font-family: var(--font-mono);
+    font-size: .85rem;
+    font-weight: 500;
+  }
+
+  .badge-clicks {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .2rem .65rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    background: rgba(0,229,255,.08);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,255,.15);
+  }
+
+  .td-actions { white-space: nowrap; }
+
+  .action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    padding: .4rem .55rem;
+    border-radius: 6px;
+    font-size: .9rem;
+    transition: all .15s;
+  }
+  .action-btn:hover { color: var(--text); background: var(--surface2); }
+  .action-btn.del:hover { color: var(--accent2); background: rgba(255,107,107,.1); }
+
+  /* ── Empty ─────────────────────────────────────────────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+    color: var(--muted);
+    opacity: .4;
+    margin-bottom: 1rem;
+  }
+
+  .empty-state h3 {
+    font-family: var(--font-head);
+    font-size: 1.3rem;
+    margin-bottom: .5rem;
+  }
+
+  .empty-state p { color: var(--muted); font-size: .9rem; margin-bottom: 1.5rem; }
+
+  /* ── Search ────────────────────────────────────────────────────────── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    gap: 1rem;
+    animation: fadeDown .4s .05s ease both;
+  }
+
+  .search-wrap {
+    position: relative;
+  }
+
+  .search-wrap i {
+    position: absolute; left: .85rem; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: .85rem; pointer-events: none;
+  }
+
+  .search-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .65rem .9rem .65rem 2.3rem;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: .875rem;
+    outline: none;
+    width: 260px;
+    transition: border-color .2s;
+  }
+
+  .search-input:focus { border-color: rgba(0,229,255,.3); }
+  .search-input::placeholder { color: var(--muted); }
+
+  .count-badge {
+    font-family: var(--font-mono);
+    font-size: .78rem;
+    color: var(--muted);
+  }
+
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(10px);  } to { opacity:1; transform:translateY(0); } }
+
+  /* Row deletion animation */
+  tr.removing { animation: slideOut .3s ease forwards; }
+  @keyframes slideOut {
+    to { opacity: 0; transform: translateX(20px); max-height: 0; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="page-header">
+    <h2>URL History</h2>
+    <p>All your shortened links in one place.</p>
+  </div>
+
+  {% if urls %}
+  <div class="toolbar">
+    <div class="search-wrap">
+      <i class="bi bi-search"></i>
+      <input type="text" class="search-input" id="search" placeholder="Search URLs…" />
+    </div>
+    <span class="count-badge" id="count-label">{{ urls|length }} link{% if urls|length != 1 %}s{% endif %}</span>
+  </div>
+
+  <div class="table-wrap">
+    <table id="url-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Original URL</th>
+          <th>Shortened</th>
+          <th>Clicks</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for url in urls %}
+        <tr id="row-{{ url.id }}" data-original="{{ url.original }}" data-short="{{ url.shortened }}">
+          <td style="color:var(--muted);font-family:var(--font-mono);font-size:.78rem;">{{ loop.index }}</td>
+          <td class="td-original"><a href="{{ url.original }}" target="_blank" rel="noopener" title="{{ url.original }}">{{ url.original }}</a></td>
+          <td class="td-short"><a href="/{{ url.shortened }}" target="_blank">/{{ url.shortened }}</a></td>
+          <td class="td-clicks">
+            <span class="badge-clicks"><i class="bi bi-cursor-fill"></i> {{ url.clicks }}</span>
+          </td>
+          <td class="td-date">{{ url.created_at.strftime('%d %b %Y') }}</td>
+          <td class="td-actions">
+            <button class="action-btn" title="Copy short URL" onclick="copyShort('{{ request.host_url }}{{ url.shortened }}')">
+              <i class="bi bi-copy"></i>
+            </button>
+            <button class="action-btn del" title="Delete" onclick="deleteRow({{ url.id }}, this)">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon"><i class="bi bi-link-45deg"></i></div>
+    <h3>No links yet</h3>
+    <p>You haven't shortened any URLs. Start from the home page!</p>
+    <a href="/" class="btn btn-accent"><i class="bi bi-scissors"></i> Shorten a URL</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  async function copyShort(url) {
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Copied: ' + url);
+    } catch(e) {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      showToast('Copied!');
+    }
+  }
+
+  async function deleteRow(id, btn) {
+    if (!confirm('Delete this link?')) return;
+    try {
+      const r = await fetch('/delete/' + id, { method: 'DELETE' });
+      if (r.ok) {
+        const row = document.getElementById('row-' + id);
+        row.classList.add('removing');
+        setTimeout(() => row.remove(), 300);
+        showToast('Link deleted.', 'var(--accent2)');
+      }
+    } catch(e) { alert('Failed to delete.'); }
+  }
+
+  // Search filter
+  const searchInput = document.getElementById('search');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase();
+      const rows = document.querySelectorAll('#url-table tbody tr');
+      let visible = 0;
+      rows.forEach(row => {
+        const match = row.dataset.original.toLowerCase().includes(q) ||
+                      row.dataset.short.toLowerCase().includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      document.getElementById('count-label').textContent =
+        visible + ' link' + (visible !== 1 ? 's' : '');
+    });
+  }
+</script>
+{% endblock %}
